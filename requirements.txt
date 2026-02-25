@@ -1,0 +1,16 @@
+# Core audio (used by src/audio/voice_recorder.py)
+numpy>=1.24.0
+sounddevice>=0.4.6
+soundfile>=0.12.0
+scipy>=1.10.0
+
+# Speech-to-text (used by src/audio/transcribe_audio.py)
+openai-whisper>=20231117
+silero-vad
+
+# Optional: for full AI HOME pipeline (see docs/AI_Custom_Voice_Personality_Guide.md)
+# openai>=1.0.0
+# pydub
+# opencv-python>=4.8.0
+# mediapipe>=0.10.0
+# elevenlabs

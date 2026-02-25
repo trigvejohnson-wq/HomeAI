@@ -1,0 +1,31 @@
+# Environment and secrets
+.env
+.env.local
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific (optional: uncomment if you add these)
+# *.pt
+# *.onnx
