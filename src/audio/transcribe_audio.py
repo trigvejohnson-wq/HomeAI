@@ -5,7 +5,19 @@ import numpy as np
 from silero_vad import load_silero_vad, get_speech_timestamps
 import voice_recorder
 
-model = whisper.load_model("base")
+# Prefer NVIDIA GPU (CUDA), then CPU
+def _get_device():
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda", "cuda"
+    except Exception:
+        pass
+    return "cpu", "cpu"
+
+_device, _device_name = _get_device()
+model = whisper.load_model("base", device=_device)
+print(f"Whisper using device: {_device_name}")
 vad_model = load_silero_vad()
 
 # --- VAD-based stop: used so we don't wait a fixed 5s; stop when user pauses ---
