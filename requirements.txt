@@ -1,14 +1,17 @@
-# Core audio (used by src/audio/voice_recorder.py)
+# audio/ (voice_recorder, transcribe_audio)
 numpy>=1.24.0
 sounddevice>=0.4.6
 soundfile>=0.12.0
 scipy>=1.10.0
 
-# Speech-to-text (used by src/audio/transcribe_audio.py)
+# audio/transcribe_audio (whisper + VAD)
+# GPU: install torch+torchaudio from PyTorch CUDA index first
+torch>=2.4.0
+torchaudio>=2.4.0
 openai-whisper>=20231117
 silero-vad
 
-# Optional: for full AI HOME pipeline (see docs/AI_Custom_Voice_Personality_Guide.md)
+# Optional (llm, vision, tts) — see docs/AI_Custom_Voice_Personality_Guide.md
 # openai>=1.0.0
 # pydub
 # opencv-python>=4.8.0
