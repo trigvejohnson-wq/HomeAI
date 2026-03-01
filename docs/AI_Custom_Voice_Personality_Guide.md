@@ -52,8 +52,9 @@ Before starting, ensure you have:
 |-------------|---------|
 | **Python** | 3.10+ recommended |
 | **Hardware** | USB/webcam camera, working microphone |
-| **API Keys** | OpenAI (or alternative LLM), ElevenLabs (or alternative TTS) |
-| **GPU (optional)** | Improves Whisper and vision model performance |
+| **API Keys** | OpenAI (or alternative LLM) |
+| **GPU** | NVIDIA GPU with 4GB+ VRAM for inference, 8GB+ recommended for training |
+| **GPU (optional for STT)** | Improves Whisper and vision model performance |
 | **OS** | Windows, macOS, or Linux |
 
 ---
@@ -76,14 +77,26 @@ Before starting, ensure you have:
 | **Anthropic Claude** | Strong reasoning | API cost | Per token |
 | **Local (Ollama, LM Studio)** | Free, private | Needs GPU, slower | Free |
 
-### Text-to-Speech (TTS)
+### Text-to-Speech (TTS) + Voice Conversion
+
+We use a two-stage pipeline: a TTS engine generates speech, then RVC converts it to a custom voice (e.g., an anime character).
+
+**Stage 1 — TTS Engine (generates the base speech):**
 | Option | Pros | Cons | Cost |
 |--------|------|------|------|
-| **ElevenLabs** | Best custom voice, cloning | Paid after free tier | Subscription |
-| **OpenAI TTS** | Good quality, simple | Fewer voices | Per character |
-| **Coqui TTS** | Open source, voice cloning | Deprecated, community forks | Free |
-| **Piper TTS** | Fast, offline | Less natural | Free |
-| **Edge TTS** | Free, many voices | Less customizable | Free |
+| **Edge TTS** | Free, many voices, fast | Requires internet | Free |
+| **Piper TTS** | Fast, fully offline | Less natural | Free |
+| **OpenAI TTS** | Good quality, simple | API cost | Per character |
+| **Coqui XTTS** | Open source, decent quality | Deprecated, community forks | Free |
+
+**Stage 2 — Voice Conversion (converts to target character voice):**
+| Option | Pros | Cons | Cost |
+|--------|------|------|------|
+| **RVC (via Applio)** | Best quality, active community, easy UI | Needs NVIDIA GPU | Free |
+| **RVC (standalone)** | Flexible, scriptable | More manual setup | Free |
+| **GPT-SoVITS** | Few-shot cloning, good for anime | Heavier, newer project | Free |
+
+> **Why not ElevenLabs?** Commercial voice cloning services have policies that prohibit cloning voices you don't own the rights to (e.g., anime characters). RVC is open-source and self-hosted, so there are no such restrictions for personal use.
 
 ### Vision (Camera)
 | Option | Use Case | Notes |
@@ -136,9 +149,11 @@ ultralytics>=8.0.0   # YOLO (v8/v9) for local detection, pose, segmentation
 openai>=1.0.0
 anthropic>=0.7.0
 
-# TTS (choose one or more)
-elevenlabs>=1.0.0
-openai>=1.0.0
+# TTS (base voice generation — choose one or more)
+edge-tts>=6.1.0
+# openai>=1.0.0  # already listed above for LLM
+
+# Voice Conversion (RVC — installed separately via Applio, see Step 4)
 
 # Utilities
 python-dotenv>=1.0.0
@@ -149,10 +164,11 @@ pydub>=0.25.1
 
 ```env
 OPENAI_API_KEY=sk-...
-ELEVENLABS_API_KEY=...
 # Optional
 ANTHROPIC_API_KEY=...
 ```
+
+> **Note:** RVC/Applio runs entirely locally — no API keys needed for voice conversion.
 
 ---
 
@@ -370,48 +386,119 @@ def get_ai_response(text_input, image_content=None, conversation_history=[]):
 
 ---
 
-## Step 4: Text-to-Speech with Custom Voice
+## Step 4: Text-to-Speech with Custom Voice (RVC Pipeline)
 
-### 4.1 ElevenLabs (Custom/Voice Cloning)
+Our TTS pipeline has two stages:
+1. **TTS Engine** — converts LLM text response to speech (generic voice)
+2. **RVC Voice Conversion** — converts that speech into the target character voice (e.g., Luffy)
 
-```python
-from elevenlabs import ElevenLabs
+### 4.1 Setting Up RVC with Applio
 
-client = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
+Applio is a user-friendly frontend for RVC. Install it separately from your main project:
 
-def speak_with_elevenlabs(text, voice_id="your-voice-id"):
-    audio = client.text_to_speech.convert(voice_id, text=text)
-    return audio  # bytes
+```bash
+# Clone Applio (do this outside your project directory)
+git clone https://github.com/IAHispano/Applio.git
+cd Applio
+
+# Run the installer (Windows)
+python install.py
+
+# Launch the web UI
+python app.py
 ```
 
-To clone your voice: Use ElevenLabs Voice Lab to upload samples and generate a `voice_id`.
+### 4.2 Training a Voice Model
 
-### 4.2 OpenAI TTS
+1. **Collect training data**: Gather 10–20 minutes of clean audio clips of the target voice (e.g., Luffy). Remove background music and sound effects using **UVR (Ultimate Vocal Remover)**.
+2. **Prepare audio**: WAV format, mono, 44.1kHz or higher.
+3. In Applio's **Train** tab:
+   - Set a model name (e.g., `luffy_v1`)
+   - Upload your cleaned audio files
+   - Use **v2 architecture**, **40k or 48k sample rate**
+   - Train for 200–500 epochs (monitor loss to avoid overfitting)
+4. The trained model will be saved as a `.pth` file with an associated `.index` file.
+
+### 4.3 Stage 1 — Base TTS (Edge TTS)
+
+Edge TTS is free, fast, and produces natural-sounding speech — a good base voice for RVC to convert.
+
+```python
+import edge_tts
+import asyncio
+
+async def generate_base_tts(text, output_path="tts_output.wav", voice="en-US-GuyNeural"):
+    communicate = edge_tts.Communicate(text, voice)
+    await communicate.save(output_path)
+    return output_path
+
+def text_to_base_speech(text, output_path="tts_output.wav"):
+    return asyncio.run(generate_base_tts(text, output_path))
+```
+
+### 4.4 Stage 2 — RVC Voice Conversion
+
+Use RVC's inference pipeline to convert the base TTS audio to the target voice. You can call Applio's CLI or use the `rvc` library directly:
+
+```python
+import subprocess
+import os
+
+RVC_MODEL_PATH = "path/to/luffy_v1.pth"
+RVC_INDEX_PATH = "path/to/luffy_v1.index"
+APPLIO_DIR = "path/to/Applio"
+
+def convert_voice_rvc(input_audio_path, output_path="rvc_output.wav",
+                      pitch_shift=0, method="rmvpe"):
+    """Convert audio to target voice using Applio CLI."""
+    cmd = [
+        "python", os.path.join(APPLIO_DIR, "core", "infer.py"),
+        "--input", input_audio_path,
+        "--output", output_path,
+        "--model", RVC_MODEL_PATH,
+        "--index", RVC_INDEX_PATH,
+        "--pitch", str(pitch_shift),
+        "--method", method,
+    ]
+    subprocess.run(cmd, check=True)
+    return output_path
+```
+
+### 4.5 Combined TTS + Voice Conversion
+
+```python
+def speak_as_character(text, output_path="final_output.wav"):
+    """Full pipeline: text → TTS → RVC → character voice."""
+    base_audio = text_to_base_speech(text, "tts_temp.wav")
+    final_audio = convert_voice_rvc(base_audio, output_path)
+    return final_audio
+```
+
+### 4.6 Alternative: OpenAI TTS as Base Voice
 
 ```python
 from openai import OpenAI
 client = OpenAI()
 
-def speak_with_openai(text, voice="alloy"):  # alloy, echo, fable, onyx, nova, shimmer
+def speak_with_openai(text, output_path="tts_output.wav", voice="alloy"):
     response = client.audio.speech.create(
         model="tts-1",
         voice=voice,
         input=text
     )
-    return response.content  # bytes
+    with open(output_path, "wb") as f:
+        f.write(response.content)
+    return output_path
 ```
 
-### 4.3 Play Audio
+### 4.7 Play Audio
 
 ```python
 import sounddevice as sd
-import numpy as np
 from scipy.io import wavfile
 
-def play_audio(audio_bytes, sample_rate=44100):
-    # If raw bytes, decode; if WAV, use wavfile
-    # Example for raw PCM or WAV:
-    rate, data = wavfile.read(io.BytesIO(audio_bytes))
+def play_audio(audio_path):
+    rate, data = wavfile.read(audio_path)
     sd.play(data, rate)
     sd.wait()
 ```
@@ -441,9 +528,9 @@ def run_one_turn(use_camera=True):
     # 4. Get LLM response
     response_text = get_ai_response(text, image_content)
     
-    # 5. Speak it
-    audio_out = speak_with_elevenlabs(response_text)
-    play_audio(audio_out)
+    # 5. Speak it (TTS → RVC → play)
+    audio_path = speak_as_character(response_text)
+    play_audio(audio_path)
     
     return response_text
 ```
@@ -476,8 +563,9 @@ def main_loop():
         response = get_ai_response(text, conversation_history=conversation_history)
         conversation_history.append({"role": "assistant", "content": response})
         
-        # Speak
-        play_audio(speak_with_elevenlabs(response))
+        # Speak (TTS → RVC → play)
+        audio_path = speak_as_character(response)
+        play_audio(audio_path)
 ```
 
 ### 6.2 Push-to-Talk vs. Continuous Listening
@@ -500,9 +588,12 @@ personality:
   system_prompt: "You are Alex, a helpful assistant..."
 
 voice:
-  provider: "elevenlabs"  # or openai, edge
-  voice_id: "abc123..."
-  speed: 1.0
+  tts_provider: "edge_tts"  # or openai, piper
+  tts_voice: "en-US-GuyNeural"
+  rvc_model: "path/to/luffy_v1.pth"
+  rvc_index: "path/to/luffy_v1.index"
+  pitch_shift: 0
+  inference_method: "rmvpe"
 
 input:
   microphone_sample_rate: 16000
@@ -525,7 +616,8 @@ llm:
 | **Camera** | Process frames locally when possible; only send to API if needed |
 | **Microphone** | Inform users when recording; store no audio by default |
 | **API keys** | Use `.env` and never commit keys |
-| **Data retention** | Check OpenAI/ElevenLabs policies; use opt-out if available |
+| **Data retention** | Check OpenAI API policies; use opt-out if available |
+| **Voice models** | RVC models run locally — no data leaves your machine |
 | **Local fallback** | Use local Whisper + local LLM (Ollama) for sensitive use cases |
 
 ---
@@ -547,10 +639,12 @@ llm:
 - Use Whisper API instead of local
 - Use a GPU and `fp16=True`
 
-### TTS sounds robotic
-- Prefer ElevenLabs for more natural voices
-- Use `tts-1-hd` with OpenAI for better quality
-- Adjust speaking rate in TTS settings
+### TTS sounds robotic or doesn't match the character
+- Choose a base TTS voice with similar pitch/energy to the target character for better RVC conversion
+- Train the RVC model with more data or more epochs
+- Experiment with `pitch_shift` (positive for higher, negative for lower)
+- Try different inference methods (`rmvpe`, `crepe`, `harvest`)
+- Use `tts-1-hd` with OpenAI for a higher-quality base voice
 
 ### High latency
 - Use streaming: stream LLM tokens and TTS as they arrive
@@ -568,4 +662,4 @@ llm:
 
 ---
 
-*Last updated: February 2025*
+*Last updated: February 2026*
