@@ -3,6 +3,46 @@ import sounddevice as sd
 import numpy as np
 
 
+def make_silence_stop_callback(
+    silence_duration_sec=0.8,
+    min_speech_sec=0.3,
+    silence_threshold=0.01,
+):
+    """
+    Returns a should_stop_cb for record_until_silence that stops after continuous
+    silence. Uses RMS (root mean square) of recent audio to detect silence.
+
+    Args:
+        silence_duration_sec: Stop after this many seconds of continuous silence.
+        min_speech_sec: Require at least this much speech before stopping on silence.
+        silence_threshold: RMS below this (float32) is considered silence.
+    """
+    last_speech_time = [0.0]
+
+    def should_stop(audio_so_far, sample_rate):
+        if len(audio_so_far) == 0:
+            return False
+        lookback_sec = 0.3
+        lookback_samples = int(lookback_sec * sample_rate)
+        recent = (
+            audio_so_far[-lookback_samples:]
+            if len(audio_so_far) >= lookback_samples
+            else audio_so_far
+        )
+        rms = np.sqrt(np.mean(recent**2))
+        total_duration = len(audio_so_far) / sample_rate
+
+        if rms > silence_threshold:
+            last_speech_time[0] = total_duration
+            return False
+        if total_duration < min_speech_sec:
+            return False
+        silence_length = total_duration - last_speech_time[0]
+        return silence_length >= silence_duration_sec
+
+    return should_stop
+
+
 def record_audio(duration_sec=5, sample_rate=16000):
     """Record audio from default microphone for a fixed duration."""
     print("Recording audio for", duration_sec, "seconds...")
@@ -20,8 +60,8 @@ def record_until_silence(
     sample_rate=16000,
     should_stop_cb=None,
     max_duration_sec=15.0,
-    block_duration_sec=0.3,
-    poll_interval_ms=100,
+    block_duration_sec=0.75,
+    poll_interval_ms=250,
     stop_event=None,
 ):
     """
@@ -44,6 +84,7 @@ def record_until_silence(
     if should_stop_cb is None:
         return record_audio(max_duration_sec, sample_rate)
 
+    print("Recording... (speak, then pause to stop)")
     block_size = int(block_duration_sec * sample_rate)
     max_samples = int(max_duration_sec * sample_rate)
     buffer = []
