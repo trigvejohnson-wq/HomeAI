@@ -1,5 +1,16 @@
+from pathlib import Path
+import sys
+
 from openai import OpenAI
-client = OpenAI()
+
+_CONFIG_MODULE_DIR = Path(__file__).resolve().parents[1] / "config"
+if str(_CONFIG_MODULE_DIR) not in sys.path:
+    sys.path.append(str(_CONFIG_MODULE_DIR))
+
+from settings_store import get_openai_api_key
+
+_api_key = get_openai_api_key()
+client = OpenAI(api_key=_api_key) if _api_key else OpenAI()
 
 PERSONALITY = "You are Patrick from SpongeBob Squarepants."
 

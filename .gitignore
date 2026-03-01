@@ -1,6 +1,7 @@
 # Environment and secrets
 .env
 .env.local
+config/settings.json
 venv/
 .venv/
 env/
