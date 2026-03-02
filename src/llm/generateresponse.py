@@ -21,7 +21,8 @@ if not user_text:
     print("No speech detected. Please run again and speak clearly after \"Listening...\"")
     sys.exit(1)
 
-response = client.responses.create(
+def response():
+  response = client.responses.create(
   model="gpt-4.1-mini",
   input=[
     {
