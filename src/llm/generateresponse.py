@@ -56,6 +56,7 @@ def response():
   top_p=1,
   store=True,
   include=["web_search_call.action.sources"]
+  return response.output_text
 )
 
 if __name__ == "__main__":
