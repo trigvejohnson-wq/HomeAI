@@ -4,9 +4,10 @@ import numpy as np
 
 
 def make_silence_stop_callback(
-    silence_duration_sec=0.8,
+    silence_duration_sec=1.2,
     min_speech_sec=0.3,
-    silence_threshold=0.01,
+    silence_threshold=0.012,
+    min_total_duration_sec=1.5,
 ):
     """
     Returns a should_stop_cb for record_until_silence that stops after continuous
@@ -16,6 +17,8 @@ def make_silence_stop_callback(
         silence_duration_sec: Stop after this many seconds of continuous silence.
         min_speech_sec: Require at least this much speech before stopping on silence.
         silence_threshold: RMS below this (float32) is considered silence.
+        min_total_duration_sec: Don't stop on silence until at least this much
+            recording time has passed (gives user time to start speaking).
     """
     last_speech_time = [0.0]
 
@@ -32,6 +35,9 @@ def make_silence_stop_callback(
         rms = np.sqrt(np.mean(recent**2))
         total_duration = len(audio_so_far) / sample_rate
 
+        # Don't allow stop-on-silence until user has had time to start speaking
+        if total_duration < min_total_duration_sec:
+            return False
         if rms > silence_threshold:
             last_speech_time[0] = total_duration
             return False
@@ -45,7 +51,7 @@ def make_silence_stop_callback(
 
 def record_audio(duration_sec=5, sample_rate=16000):
     """Record audio from default microphone for a fixed duration."""
-    print("Recording audio for", duration_sec, "seconds...")
+    #print("Recording audio for", duration_sec, "seconds...")
     audio = sd.rec(
         int(duration_sec * sample_rate),
         samplerate=sample_rate,
@@ -84,7 +90,7 @@ def record_until_silence(
     if should_stop_cb is None:
         return record_audio(max_duration_sec, sample_rate)
 
-    print("Recording... (speak, then pause to stop)")
+    #print("Recording... (speak, then pause to stop)")
     block_size = int(block_duration_sec * sample_rate)
     max_samples = int(max_duration_sec * sample_rate)
     buffer = []
