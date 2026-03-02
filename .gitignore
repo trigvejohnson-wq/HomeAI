@@ -1,6 +1,7 @@
 # Environment and secrets
 .env
 .env.local
+*.env
 venv/
 .venv/
 env/
@@ -15,17 +16,33 @@ __pycache__/
 .eggs/
 dist/
 build/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
 
 # IDE / editor
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Project-specific (optional: uncomment if you add these)
-# *.pt
-# *.onnx
+# Project-specific (AI HOME: Whisper, torch, audio)
+*.pt
+*.onnx
+*.pth
+*.bin
+# Local audio recordings / temp files (if stored in repo)
+*.wav
+*.mp3
+*.ogg
+recordings/
+logs/
+.cache/
