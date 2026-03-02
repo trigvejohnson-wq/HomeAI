@@ -11,9 +11,16 @@ torchaudio>=2.4.0
 openai-whisper>=20231117
 silero-vad
 
-# Optional (llm, vision, tts) — see docs/AI_Custom_Voice_Personality_Guide.md
-# openai>=1.0.0
+# config (env loading)
+python-dotenv>=1.0.0
+
+# llm (generateresponse.py)
+openai>=1.0.0
+
+# vision (vision.py)
+opencv-python>=4.8.0
+
+# Optional (tts, etc.) — see docs/AI_Custom_Voice_Personality_Guide.md
 # pydub
-# opencv-python>=4.8.0
 # mediapipe>=0.10.0
 # elevenlabs
