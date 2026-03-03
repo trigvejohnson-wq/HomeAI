@@ -28,7 +28,8 @@ This document summarizes how much of the project is **done** versus **left to do
 | **Microphone & speech-to-text** | Done | `voice_recorder.py`: record until silence (VAD-style). `transcribe_audio.py`: Whisper (local, GPU/CPU). |
 | **LLM integration** | Done (single turn) | `generateresponse.py`: records → transcribes → calls OpenAI Responses API → returns text. Personality is **hardcoded** (Luffy). |
 | **Vision basics** | Done | `vision.py`: capture frame from camera, encode frame to base64. Not yet wired into LLM or “where is X” logic. |
-| **TTS (Edge)** | Partial | `edgy.py`: async Edge TTS function exists. Not called from pipeline; `if __name__` block has bugs (missing `asyncio.run`, wrong `response` reference). |
+| **TTS (Edge)** | Partial | `edgy.py`: sync + async Edge TTS helpers now exist, plus optional RCV conversion hook for custom voice output. |
+| **Custom voice (RCV/RVC)** | Partial | `src/tts/rcv.py`: definition-driven model registry, command builder, and converter for custom trained voice models (Applio-compatible). |
 | **Config** | Minimal | `config/settings.py`: loads `.env`; only `OPENAI_API_KEY` used. `.env.example` present. |
 | **Documentation** | Done | `docs/AI_Custom_Voice_Personality_Guide.md`: full pipeline (STT, vision, LLM, TTS, RVC, orchestration, config). |
 
@@ -45,7 +46,7 @@ This document summarizes how much of the project is **done** versus **left to do
 | **Environment-based comments** | Use camera (and optionally other sensors) so the assistant can make “random” or contextual comments about the environment; needs vision → LLM integration and a way to trigger (schedule or event). |
 | **“Where is person/pet?”** | Add vision analysis (e.g. YOLO for people/pets/objects), build scene descriptions or structured detections, and feed that into the LLM so it can answer “where is X?” and “where is [object]?”. |
 | **TTS in pipeline** | Fix `edgy.py` and call it from the main flow; play generated audio (e.g. with `sounddevice` or `scipy.io.wavfile`). |
-| **Custom voice (third-party)** | Optional: add RVC (or other) voice conversion as in the guide (base TTS → RVC → play); make it configurable (paths, pitch, etc.). |
+| **Custom voice (third-party)** | Wire the new definition-driven RCV module into your final orchestration loop (base TTS → RCV → play) and choose model dynamically per turn. |
 | **Configuration** | Extend beyond API key: personality, TTS provider/voice, RVC paths, camera index, record duration, LLM model, etc. (e.g. `config.yaml` as in the guide). |
 | **Real-time loop** | Optional: wake word, push-to-talk, or continuous listen so the assistant runs as a persistent home assistant, not just a one-off script. |
 
