@@ -10,4 +10,4 @@ if __name__ == "__main__":
     text = "Hello, how are you?"
     output_path = "basic_voice.wav"
     voice = "en-US-GuyNeural"
-    generate_voice(text, output_path, voice)
+    asyncio.run(generate_voice(text, output_path, voice))
